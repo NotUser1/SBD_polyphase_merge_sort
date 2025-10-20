@@ -1,8 +1,8 @@
 import random
 
-RECORD_COUNT = 200
+RECORD_COUNT = 20000
 TAPE_COUNT = 2
-PAGE_SIZE = 10
+PAGE_SIZE = 100
 
 
 def calculate_distance(record):
@@ -20,10 +20,10 @@ def fibonacci_pair(n):
 
 def generate_record():
     record = {
-        # "x": random.randint(1, 1000) / 100.0,
-        # "y": random.randint(1, 1000) / 100.0
-        "x": random.randint(0, 4),
-        "y": 0
+        "x": random.randint(1, 1000) / 100.0,
+        "y": random.randint(1, 1000) / 100.0
+        # "x": random.randint(0, 4),
+        # "y": 0
     }
     return record
 
@@ -33,6 +33,19 @@ def generate_data():
     for _ in range(RECORD_COUNT):
         records.append(generate_record())
 
+    tape_1_run_count, tape_2_run_count, dummy_run_count = split_records_into_tapes(records)
+    return tape_1_run_count, tape_2_run_count, dummy_run_count, records
+
+
+def handle_data_from_file(filename):
+    records = []
+    with open(f"{filename}", "r") as f:
+        for line in f:
+            line = line.strip()
+            if line == "":
+                continue
+            x, y = map(float, line.split(','))
+            records.append({"x": x, "y": y})
     tape_1_run_count, tape_2_run_count, dummy_run_count = split_records_into_tapes(records)
     return tape_1_run_count, tape_2_run_count, dummy_run_count, records
 
