@@ -1,8 +1,8 @@
 import random
 
-RECORD_COUNT = 20000
+RECORD_COUNT = 100
 TAPE_COUNT = 2
-PAGE_SIZE = 100
+PAGE_SIZE = 10
 
 
 def calculate_distance(record):

@@ -206,8 +206,9 @@ class Sorting:
 
 
 def main():
-    global NUM_OF_PAGE_WRITES, NUM_OF_PHASES
+    global NUM_OF_PAGE_WRITES, NUM_OF_PAGE_READS, NUM_OF_PHASES
     NUM_OF_PAGE_WRITES = 0
+    NUM_OF_PAGE_READS = 0
     NUM_OF_PHASES = 0
 
     choice = input(
