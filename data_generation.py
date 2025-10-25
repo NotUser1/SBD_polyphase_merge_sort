@@ -1,6 +1,6 @@
 import random
 
-RECORD_COUNT = 100
+RECORD_COUNT = 180
 TAPE_COUNT = 2
 PAGE_SIZE = 10
 
@@ -12,10 +12,11 @@ def calculate_distance(record):
 
 
 def fibonacci_pair(n):
-    a, b = 1, 1
+    a, b, c = 1, 1, 1
     while n > (a + b):
         a, b = b, a + b
-    return a, b
+        c += 1
+    return a, b, c
 
 
 def generate_record():
@@ -33,8 +34,8 @@ def generate_data():
     for _ in range(RECORD_COUNT):
         records.append(generate_record())
 
-    tape_1_run_count, tape_2_run_count, dummy_run_count = split_records_into_tapes(records)
-    return tape_1_run_count, tape_2_run_count, dummy_run_count, records
+    phase_count, dummy_run_count = split_records_into_tapes(records)
+    return dummy_run_count, records, phase_count
 
 
 def handle_data_from_file(filename):
@@ -46,8 +47,8 @@ def handle_data_from_file(filename):
                 continue
             x, y = map(float, line.split(','))
             records.append({"x": x, "y": y})
-    tape_1_run_count, tape_2_run_count, dummy_run_count = split_records_into_tapes(records)
-    return tape_1_run_count, tape_2_run_count, dummy_run_count, records
+    phase_count, dummy_run_count = split_records_into_tapes(records)
+    return dummy_run_count, records, phase_count
 
 
 def get_run_count(runs):
@@ -80,29 +81,28 @@ def split_records_into_tapes(records):
                     break
 
     run_count = get_run_count(records)
-    a, b = fibonacci_pair(run_count)
+    a, b, c = fibonacci_pair(run_count)
     dummy_records_count = (a + b) - run_count
     print("t1: ", b, " t2: ", a, " dummy: ", dummy_records_count)
     # write a records to tape 2 and b - dummy records to tape 2
     with open("tape_1.txt", "w") as tape1, open("tape_2.txt", "w") as tape2:
         write_records_to_tape(tape2, records, a)
         write_records_to_tape(tape1, records, b)
-        return b, a, dummy_records_count
+        return c, dummy_records_count
 
 
 def read_manual_input():
-    for i in range(TAPE_COUNT):
-        print(f"Input tape {i + 1}/2")
-        records = []
-        while True:
-            line = input()
-            if line.strip() == "":
-                break
-            x, y = line.strip().split(',')
-            records.append({"x": float(x), "y": float(y)})
-        with open(f"tape_{i + 1}.txt", "w") as f:
-            for record in records:
-                f.write(f"{record['x']},{record['y']}\n")
+    print(f"Input the data (x y)")
+    records = []
+    while True:
+        line = input()
+        if line.strip() == "":
+            break
+        x, y = line.strip().split(',')
+        records.append({"x": float(x), "y": float(y)})
+    with open(f"input.txt", "w") as f:
+        for record in records:
+            f.write(f"{record['x']},{record['y']}\n")
 
 
 def generate_archive(parameter, tapes):

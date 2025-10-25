@@ -1,9 +1,8 @@
 from data_generation import calculate_distance, generate_data, PAGE_SIZE, read_manual_input, generate_archive, handle_data_from_file
 
-global NUM_OF_PAGE_READS, NUM_OF_PAGE_WRITES, NUM_OF_PHASES
+global NUM_OF_PAGE_READS, NUM_OF_PAGE_WRITES
 NUM_OF_PAGE_READS = 0
 NUM_OF_PAGE_WRITES = 0
-NUM_OF_PHASES = 0
 
 
 class IO:
@@ -12,14 +11,16 @@ class IO:
         self.t2 = None
         self.t3 = None
         self.dummy_run_count = 0
+        self.sorting_phases = 0
 
     def handle_input(self, choice):
         if choice == '1':
             read_manual_input()
+            self.dummy_run_count, records, self.sorting_phases = handle_data_from_file("input.txt")
         elif choice == '2':
-            tape_1_run_count, tape_2_run_count, self.dummy_run_count, records = handle_data_from_file("input.txt")
+            self.dummy_run_count, records, self.sorting_phases = handle_data_from_file("input.txt")
         else:
-            tape_1_run_count, tape_2_run_count, self.dummy_run_count, records = generate_data()
+            self.dummy_run_count, records, self.sorting_phases = generate_data()
 
     def prepare_tapes(self, dummy_run_count):
         open("tape_3.txt", "w").close()  # create empty tape 3
@@ -108,9 +109,6 @@ class Sorting:
                     return None, 0, []
                 return new_page[0], 0, new_page
 
-        global NUM_OF_PHASES
-        NUM_OF_PHASES += 1
-
         self.t2.input_page = self.t2.read_page()
         self.t2.input_page_index = 0
         record_2 = self.t2.input_page[self.t2.input_page_index] if self.t2.input_page else None
@@ -194,22 +192,11 @@ class Sorting:
 
         return self.t3, self.t1, self.t2
 
-    def check_if_sorted(self):
-        tapes = [self.t1, self.t2, self.t3]
-        data_flags = []
-        for tape in tapes:
-            tape.file.seek(0)
-            has_data = any(tape.file)
-            tape.file.seek(0)
-            data_flags.append(has_data)
-        return data_flags.count(True) == 1
-
 
 def main():
-    global NUM_OF_PAGE_WRITES, NUM_OF_PAGE_READS, NUM_OF_PHASES
+    global NUM_OF_PAGE_WRITES, NUM_OF_PAGE_READS
     NUM_OF_PAGE_WRITES = 0
     NUM_OF_PAGE_READS = 0
-    NUM_OF_PHASES = 0
 
     choice = input(
         "Aby wprowadzić rekordy ręcznie, naciśnij '1',\n"
@@ -224,25 +211,25 @@ def main():
 
     sorter = Sorting(t1, t2, t3)
 
-    while True:
-        print(f"Phase {NUM_OF_PHASES}")
-        generate_archive(NUM_OF_PHASES, [t1, t2, t3])
+    for i in range(io.sorting_phases):
+        print(f"Phase {i}")
+        generate_archive(i, [t1, t2, t3])
         sorter.merge_sort_phase()
         sorter.t1, sorter.t2, sorter.t3 = sorter.reshuffle_tapes()
-        if sorter.check_if_sorted():
-            print("Sorting completed.")
-            break
         input("Press Enter to continue to next phase...")
 
     generate_archive("sorted", [t1, t2, t3])
 
-    print(f"Number of phases: {NUM_OF_PHASES}")
+    print(f"Number of phases: {io.sorting_phases}")
     print(f"Number of page writes: {NUM_OF_PAGE_WRITES}")
     print(f"Number of page reads: {NUM_OF_PAGE_READS}")
 
     t1.close()
     t2.close()
     t3.close()
+
+#   stała długość rekordów
+#   wykonakj x faz sortowania a nie sprawdzaj po fazie czy pliki są puste
 
 
 if __name__ == "__main__":
