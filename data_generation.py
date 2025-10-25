@@ -1,8 +1,10 @@
 import random
+import struct
 
 RECORD_COUNT = 180
 TAPE_COUNT = 2
 PAGE_SIZE = 10
+RECORD_SIZE = struct.calcsize('<dd')
 
 
 def calculate_distance(record):
@@ -38,7 +40,7 @@ def generate_data():
     return dummy_run_count, records, phase_count
 
 
-def handle_data_from_file(filename):
+def handle_data_from_text_file(filename):
     records = []
     with open(f"{filename}", "r") as f:
         for line in f:
@@ -46,6 +48,19 @@ def handle_data_from_file(filename):
             if line == "":
                 continue
             x, y = map(float, line.split(','))
+            records.append({"x": x, "y": y})
+    phase_count, dummy_run_count = split_records_into_tapes(records)
+    return dummy_run_count, records, phase_count
+
+
+def handle_data_from_bin_file(filename):
+    records = []
+    with open(f"{filename}", "rb") as f:
+        while True:
+            chunk = f.read(RECORD_SIZE)
+            if not chunk or len(chunk) < RECORD_SIZE:
+                break
+            x, y = struct.unpack('<dd', chunk)
             records.append({"x": x, "y": y})
     phase_count, dummy_run_count = split_records_into_tapes(records)
     return dummy_run_count, records, phase_count
@@ -69,12 +84,12 @@ def split_records_into_tapes(records):
             if not records_arr:
                 break
             record = records_arr.pop(0)
-            tape_number.write(f"{record['x']},{record['y']}\n")
+            tape_number.write(struct.pack('<dd', record['x'], record['y']))
             prev_record = record
             while records_arr:
                 record = records_arr[0]
                 if calculate_distance(record) >= calculate_distance(prev_record):
-                    tape_number.write(f"{record['x']},{record['y']}\n")
+                    tape_number.write(struct.pack('<dd', record['x'], record['y']))
                     prev_record = record
                     records_arr.pop(0)
                 else:
@@ -84,8 +99,8 @@ def split_records_into_tapes(records):
     a, b, c = fibonacci_pair(run_count)
     dummy_records_count = (a + b) - run_count
     print("t1: ", b, " t2: ", a, " dummy: ", dummy_records_count)
-    # write a records to tape 2 and b - dummy records to tape 2
-    with open("tape_1.txt", "w") as tape1, open("tape_2.txt", "w") as tape2:
+
+    with open("tape_1.bin", "wb") as tape1, open("tape_2.bin", "wb") as tape2:
         write_records_to_tape(tape2, records, a)
         write_records_to_tape(tape1, records, b)
         return c, dummy_records_count
@@ -112,7 +127,12 @@ def generate_archive(parameter, tapes):
             pos = tape.file.tell()
             tape.file.seek(0)
             archive.write(f"--- {tape.filename} ---\n")
-            archive.write(tape.file.read())
+            while True:
+                chunk = tape.file.read(RECORD_SIZE)
+                if not chunk or len(chunk) < RECORD_SIZE:
+                    break
+                x, y = struct.unpack('<dd', chunk)
+                archive.write(f"{x},{y}\n")
             archive.write("\n")
             tape.file.seek(pos)
     archive.close()

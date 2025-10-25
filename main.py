@@ -1,4 +1,6 @@
-from data_generation import calculate_distance, generate_data, PAGE_SIZE, read_manual_input, generate_archive, handle_data_from_file
+from data_generation import calculate_distance, generate_data, PAGE_SIZE, read_manual_input, generate_archive, handle_data_from_text_file, RECORD_SIZE, handle_data_from_bin_file
+
+import struct
 
 global NUM_OF_PAGE_READS, NUM_OF_PAGE_WRITES
 NUM_OF_PAGE_READS = 0
@@ -16,21 +18,37 @@ class IO:
     def handle_input(self, choice):
         if choice == '1':
             read_manual_input()
-            self.dummy_run_count, records, self.sorting_phases = handle_data_from_file("input.txt")
+            self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
         elif choice == '2':
-            self.dummy_run_count, records, self.sorting_phases = handle_data_from_file("input.txt")
+            file_type = input("Wpisz 'txt' aby wczytać z pliku tekstowego lub 'bin' aby wczytać z pliku binarnego: ")
+            if file_type == 'txt':
+                # convert input.txt to input.bin
+                with open("input.txt", "r") as txt_file, open("input.bin", "wb") as bin_file:
+                    for line in txt_file:
+                        line = line.strip()
+                        if line == "":
+                            continue
+                        x, y = map(float, line.split(','))
+                        packed_record = struct.pack('<dd', x, y)
+                        bin_file.write(packed_record)
+
+
+
+                self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
+            elif file_type == 'bin':
+                self.dummy_run_count, records, self.sorting_phases = handle_data_from_bin_file("input.bin")
         else:
             self.dummy_run_count, records, self.sorting_phases = generate_data()
 
     def prepare_tapes(self, dummy_run_count):
-        open("tape_3.txt", "w").close()  # create empty tape 3
+        open("tape_3.bin", "wb").close()  # create empty tape 3
 
-        self.t1 = Tape("tape_1.txt", dummy_run_count)
-        self.t2 = Tape("tape_2.txt", 0)
-        self.t3 = Tape("tape_3.txt", 0)
-        self.t1.file = open(self.t1.filename, 'r+')
-        self.t2.file = open(self.t2.filename, 'r+')
-        self.t3.file = open(self.t3.filename, 'w+')
+        self.t1 = Tape("tape_1.bin", dummy_run_count)
+        self.t2 = Tape("tape_2.bin", 0)
+        self.t3 = Tape("tape_3.bin", 0)
+        self.t1.file = open(self.t1.filename, 'r+b')
+        self.t2.file = open(self.t2.filename, 'r+b')
+        self.t3.file = open(self.t3.filename, 'w+b')
 
 
 class Tape:
@@ -43,27 +61,25 @@ class Tape:
         self.input_page_index = 0
 
     def write_record(self, record):
-        self.out_page.append(record)
+        packed_record = struct.pack('<dd', record['x'], record['y'])
+        self.out_page.append(packed_record)
         page_length = len(self.out_page)
         if page_length >= PAGE_SIZE:
             self.write_page()
-            self.out_page = []
 
     def write_page(self):
         global NUM_OF_PAGE_WRITES
         NUM_OF_PAGE_WRITES += 1
-        for record in self.out_page:
-            self.file.write(f"{record['x']},{record['y']}\n")
-            self.file.flush()
+        for packed_record in self.out_page:
+            self.file.write(packed_record)
+        self.file.flush()
+        self.out_page = []
 
     def read_record(self):
-        line = self.file.readline()
-        if not line:
+        chunk = self.file.read(RECORD_SIZE)
+        if not chunk or len(chunk) < RECORD_SIZE:
             return None
-        line = line.strip()
-        if line == "":
-            return None
-        x, y = map(float, line.split(','))
+        x, y = struct.unpack('<dd', chunk)
         return {"x": x, "y": y}
 
     def read_page(self):
@@ -179,7 +195,8 @@ class Sorting:
 
         # 1. write t1 page onto t1
         for i in range(self.t1.input_page_index, len(self.t1.input_page)):
-            self.t1.file.write(f"{self.t1.input_page[i]['x']},{self.t1.input_page[i]['y']}\n")
+            packed_record = struct.pack('<dd', self.t1.input_page[i]['x'], self.t1.input_page[i]['y'])
+            self.t1.file.write(packed_record)
         self.t1.file.flush()
 
         # 2. write t1_reminder onto t1
