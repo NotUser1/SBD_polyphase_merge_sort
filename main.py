@@ -1,10 +1,9 @@
-from data_generation import calculate_distance, generate_data, PAGE_SIZE, read_manual_input, generate_archive, handle_data_from_text_file, RECORD_SIZE, handle_data_from_bin_file
+from data_generation import calculate_distance, generate_data, PAGE_SIZE, read_manual_input, generate_archive, \
+    handle_data_from_text_file, RECORD_SIZE, handle_data_from_bin_file
 
 import struct
 
 global NUM_OF_PAGE_READS, NUM_OF_PAGE_WRITES
-NUM_OF_PAGE_READS = 0
-NUM_OF_PAGE_WRITES = 0
 
 
 class IO:
@@ -22,18 +21,6 @@ class IO:
         elif choice == '2':
             file_type = input("Wpisz 'txt' aby wczytać z pliku tekstowego lub 'bin' aby wczytać z pliku binarnego: ")
             if file_type == 'txt':
-                # convert input.txt to input.bin
-                with open("input.txt", "r") as txt_file, open("input.bin", "wb") as bin_file:
-                    for line in txt_file:
-                        line = line.strip()
-                        if line == "":
-                            continue
-                        x, y = map(float, line.split(','))
-                        packed_record = struct.pack('<dd', x, y)
-                        bin_file.write(packed_record)
-
-
-
                 self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
             elif file_type == 'bin':
                 self.dummy_run_count, records, self.sorting_phases = handle_data_from_bin_file("input.bin")
@@ -41,7 +28,7 @@ class IO:
             self.dummy_run_count, records, self.sorting_phases = generate_data()
 
     def prepare_tapes(self, dummy_run_count):
-        open("tape_3.bin", "wb").close()  # create empty tape 3
+        open("tape_3.bin", "wb").close()
 
         self.t1 = Tape("tape_1.bin", dummy_run_count)
         self.t2 = Tape("tape_2.bin", 0)
@@ -244,9 +231,6 @@ def main():
     t1.close()
     t2.close()
     t3.close()
-
-#   stała długość rekordów
-#   wykonakj x faz sortowania a nie sprawdzaj po fazie czy pliki są puste
 
 
 if __name__ == "__main__":
