@@ -6,19 +6,26 @@ import struct
 global NUM_OF_PAGE_READS, NUM_OF_PAGE_WRITES
 
 
-class IO:
+# put this into a singleton ?
+class InputHandler:
+    input = 0
+
     def __init__(self):
-        self.t1 = None
-        self.t2 = None
-        self.t3 = None
         self.dummy_run_count = 0
         self.sorting_phases = 0
 
-    def handle_input(self, choice):
-        if choice == '1':
+    def get_input(self):
+        self.input = input(
+            "Aby wprowadzić rekordy ręcznie, naciśnij '1',\n"
+            "Aby wczytać dane z plików, naciśnij '2',\n"
+            "Aby wygenerować losowe dane, naciśnij dowolny inny klawisz: "
+        )
+
+    def handle_input(self):
+        if self.input == '1':
             read_manual_input()
             self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
-        elif choice == '2':
+        elif self.input == '2':
             file_type = input("Wpisz 'txt' aby wczytać z pliku tekstowego lub 'bin' aby wczytać z pliku binarnego: ")
             if file_type == 'txt':
                 self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
@@ -27,15 +34,32 @@ class IO:
         else:
             self.dummy_run_count, records, self.sorting_phases = generate_data()
 
+
+class TapeManager:
+    def __init__(self):
+        self.t1 = None
+        self.t2 = None
+        self.t3 = None
+
     def prepare_tapes(self, dummy_run_count):
         open("tape_3.bin", "wb").close()
-
         self.t1 = Tape("tape_1.bin", dummy_run_count)
         self.t2 = Tape("tape_2.bin", 0)
         self.t3 = Tape("tape_3.bin", 0)
         self.t1.file = open(self.t1.filename, 'r+b')
         self.t2.file = open(self.t2.filename, 'r+b')
         self.t3.file = open(self.t3.filename, 'w+b')
+
+
+class FileManager:
+    @staticmethod
+    def close_tapes(*tapes):
+        for tape in tapes:
+            tape.close()
+
+    @staticmethod
+    def generate_archive(parameter, tapes):
+        generate_archive(parameter, tapes)
 
 
 class Tape:
@@ -202,35 +226,30 @@ def main():
     NUM_OF_PAGE_WRITES = 0
     NUM_OF_PAGE_READS = 0
 
-    choice = input(
-        "Aby wprowadzić rekordy ręcznie, naciśnij '1',\n"
-        "Aby wczytać dane z plików, naciśnij '2',\n"
-        "Aby wygenerować losowe dane, naciśnij dowolny inny klawisz: "
-    )
+    input_handler = InputHandler()
+    input_handler.get_input()
+    input_handler.handle_input()
 
-    io = IO()
-    io.handle_input(choice)
-    io.prepare_tapes(io.dummy_run_count)
-    t1, t2, t3 = io.t1, io.t2, io.t3
+    tape_manager = TapeManager()
+    tape_manager.prepare_tapes(input_handler.dummy_run_count)
+    t1, t2, t3 = tape_manager.t1, tape_manager.t2, tape_manager.t3
 
     sorter = Sorting(t1, t2, t3)
 
-    for i in range(io.sorting_phases):
+    for i in range(input_handler.sorting_phases):
         print(f"Phase {i}")
-        generate_archive(i, [t1, t2, t3])
+        FileManager.generate_archive(i, [t1, t2, t3])
         sorter.merge_sort_phase()
         sorter.t1, sorter.t2, sorter.t3 = sorter.reshuffle_tapes()
         input("Press Enter to continue to next phase...")
 
-    generate_archive("sorted", [t1, t2, t3])
+    FileManager.generate_archive("sorted", [t1, t2, t3])
 
-    print(f"Number of phases: {io.sorting_phases}")
+    print(f"Number of phases: {input_handler.sorting_phases}")
     print(f"Number of page writes: {NUM_OF_PAGE_WRITES}")
     print(f"Number of page reads: {NUM_OF_PAGE_READS}")
 
-    t1.close()
-    t2.close()
-    t3.close()
+    FileManager.close_tapes(t1, t2, t3)
 
 
 if __name__ == "__main__":
