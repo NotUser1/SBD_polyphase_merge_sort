@@ -36,26 +36,30 @@ class RandomDataInputSource(InputSource):
         return generate_data()
 
 class InputFactory:
+    _registry = {}
+
+    @classmethod
+    def register(cls, key: str, creator_func):
+        cls._registry[key] = creator_func
+
     @staticmethod
     def get_input_source() -> InputSource:
         choice = input(
             "Aby wprowadzić rekordy ręcznie, naciśnij '1',\n"
-            "Aby wczytać dane z plików, naciśnij '2',\n"
+            "Aby wczytać dane z pliku tekstowego, naciśnij '2',\n"
+            "Aby wczytać dane z pliku binarnego, naciśnij '3',\n"
             "Aby wygenerować losowe dane, naciśnij dowolny inny klawisz: "
         )
         
-        if choice == '1':
-            return ManualInputSource()
-        elif choice == '2':
-            file_type = input("Wpisz 'txt' aby wczytać z pliku tekstowego lub 'bin' aby wczytać z pliku binarnego: ")
-            if file_type == 'txt':
-                return TextFileInputSource("input.txt")
-            elif file_type == 'bin':
-                return BinaryFileInputSource("input.bin")
-            else:
-                raise ValueError(f"Nieznany typ pliku: {file_type}")
+        if choice in InputFactory._registry:
+            return InputFactory._registry[choice]()
         else:
             return RandomDataInputSource()
+
+# registry - walczymy z OCP
+InputFactory.register('1', lambda: ManualInputSource())
+InputFactory.register('2', lambda: TextFileInputSource("input.txt"))
+InputFactory.register('3', lambda: BinaryFileInputSource("input.bin"))
 
 class FileInterface(Protocol):
     def write(self, s: bytes) -> int: ...
