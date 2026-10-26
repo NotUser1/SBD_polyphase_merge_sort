@@ -2,38 +2,78 @@ from data_generation import calculate_distance, generate_data, PAGE_SIZE, read_m
     handle_data_from_text_file, RECORD_SIZE, handle_data_from_bin_file
 
 import struct
+from abc import ABC, abstractmethod
+from typing import Protocol, List, Optional
 
 global NUM_OF_PAGE_READS, NUM_OF_PAGE_WRITES
 
+class InputSource(ABC):
+    @abstractmethod
+    def load_data(self) -> tuple[int, list, int]:
+        pass
 
-# put this into a singleton ?
-class InputHandler:
-    input = 0
+class ManualInputSource(InputSource):
+    def load_data(self):
+        read_manual_input()
+        return handle_data_from_text_file("input.txt")
 
-    def __init__(self):
-        self.dummy_run_count = 0
-        self.sorting_phases = 0
+class TextFileInputSource(InputSource):
+    def __init__(self, filename="input.txt"):
+        self.filename = filename
 
-    def get_input(self):
-        self.input = input(
+    def load_data(self):
+        return handle_data_from_text_file(self.filename)
+
+class BinaryFileInputSource(InputSource):
+    def __init__(self, filename="input.bin"):
+        self.filename = filename
+
+    def load_data(self):
+        return handle_data_from_bin_file(self.filename)
+
+class RandomDataInputSource(InputSource):
+    def load_data(self):
+        return generate_data()
+
+class InputFactory:
+    @staticmethod
+    def get_input_source() -> InputSource:
+        choice = input(
             "Aby wprowadzić rekordy ręcznie, naciśnij '1',\n"
             "Aby wczytać dane z plików, naciśnij '2',\n"
             "Aby wygenerować losowe dane, naciśnij dowolny inny klawisz: "
         )
-
-    def handle_input(self):
-        if self.input == '1':
-            read_manual_input()
-            self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
-        elif self.input == '2':
+        
+        if choice == '1':
+            return ManualInputSource()
+        elif choice == '2':
             file_type = input("Wpisz 'txt' aby wczytać z pliku tekstowego lub 'bin' aby wczytać z pliku binarnego: ")
             if file_type == 'txt':
-                self.dummy_run_count, records, self.sorting_phases = handle_data_from_text_file("input.txt")
+                return TextFileInputSource("input.txt")
             elif file_type == 'bin':
-                self.dummy_run_count, records, self.sorting_phases = handle_data_from_bin_file("input.bin")
+                return BinaryFileInputSource("input.bin")
+            else:
+                raise ValueError(f"Nieznany typ pliku: {file_type}")
         else:
-            self.dummy_run_count, records, self.sorting_phases = generate_data()
+            return RandomDataInputSource()
 
+class FileInterface(Protocol):
+    def write(self, s: bytes) -> int: ...
+    def read(self, size: int = -1) -> bytes: ...
+    def seek(self, offset: int, whence: int = 0) -> int: ...
+    def flush(self) -> None: ...
+    def close(self) -> None: ...
+    def truncate(self, size: Optional[int] = None) -> int: ...
+    def readlines(self, hint: int = -1) -> List[bytes]: ...
+
+class NullFile:
+    def write(self, s: bytes) -> int: return 0
+    def read(self, size: int = -1) -> bytes: return b""
+    def seek(self, offset: int, whence: int = 0) -> int: return 0
+    def flush(self) -> None: pass
+    def close(self) -> None: pass
+    def truncate(self, size: Optional[int] = None) -> int: return 0
+    def readlines(self, hint: int = -1) -> List[bytes]: return []
 
 class TapeManager:
     def __init__(self):
@@ -46,10 +86,9 @@ class TapeManager:
         self.t1 = Tape("tape_1.bin", dummy_run_count)
         self.t2 = Tape("tape_2.bin", 0)
         self.t3 = Tape("tape_3.bin", 0)
-        self.t1.file = open(self.t1.filename, 'r+b')
-        self.t2.file = open(self.t2.filename, 'r+b')
-        self.t3.file = open(self.t3.filename, 'w+b')
-
+        self.t1.file = open(self.t1.filename, 'r+b') # type: ignore
+        self.t2.file = open(self.t2.filename, 'r+b') # type: ignore
+        self.t3.file = open(self.t3.filename, 'w+b') # type: ignore
 
 class FileManager:
     @staticmethod
@@ -61,12 +100,11 @@ class FileManager:
     def generate_archive(parameter, tapes):
         generate_archive(parameter, tapes)
 
-
 class Tape:
     def __init__(self, filename, dummy_run_count=0):
         self.filename = filename
         self.dummy_run_count = dummy_run_count
-        self.file = None
+        self.file: FileInterface = NullFile()
         self.out_page = []
         self.input_page = []
         self.input_page_index = 0
@@ -114,8 +152,7 @@ class Tape:
     def close(self):
         if self.file:
             self.file.close()
-            self.file = None
-
+            self.file = NullFile()
 
 class Sorting:
     def __init__(self, t1, t2, t3):
@@ -220,23 +257,22 @@ class Sorting:
 
         return self.t3, self.t1, self.t2
 
-
 def main():
     global NUM_OF_PAGE_WRITES, NUM_OF_PAGE_READS
     NUM_OF_PAGE_WRITES = 0
     NUM_OF_PAGE_READS = 0
 
-    input_handler = InputHandler()
-    input_handler.get_input()
-    input_handler.handle_input()
+    input_source: InputSource = InputFactory.get_input_source()
+
+    dummy_run_count, records, sorting_phases = input_source.load_data()
 
     tape_manager = TapeManager()
-    tape_manager.prepare_tapes(input_handler.dummy_run_count)
+    tape_manager.prepare_tapes(dummy_run_count)
     t1, t2, t3 = tape_manager.t1, tape_manager.t2, tape_manager.t3
 
     sorter = Sorting(t1, t2, t3)
 
-    for i in range(input_handler.sorting_phases):
+    for i in range(sorting_phases):
         print(f"Phase {i}")
         FileManager.generate_archive(i, [t1, t2, t3])
         sorter.merge_sort_phase()
@@ -245,12 +281,11 @@ def main():
 
     FileManager.generate_archive("sorted", [t1, t2, t3])
 
-    print(f"Number of phases: {input_handler.sorting_phases}")
+    print(f"Number of phases: {sorting_phases}")
     print(f"Number of page writes: {NUM_OF_PAGE_WRITES}")
     print(f"Number of page reads: {NUM_OF_PAGE_READS}")
 
     FileManager.close_tapes(t1, t2, t3)
-
 
 if __name__ == "__main__":
     main()
